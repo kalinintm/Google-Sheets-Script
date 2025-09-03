@@ -1,0 +1,12 @@
+function createTimeTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  
+  // Проверка: если уже есть триггер для distributeRequests — не создавать новый
+  const exists = triggers.some(t => t.getHandlerFunction() === "distributeRequests");
+  if (!exists) {
+    ScriptApp.newTrigger("distributeRequests")
+      .timeBased()
+      .everyMinutes(5)
+      .create();
+  }
+}

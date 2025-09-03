@@ -1,0 +1,70 @@
+function distributeRequests() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Заявки");
+
+  // Считываем заявки как текст, особенно реквизиты (r[0])
+  const requests = sheet.getRange("B3:D65").getValues()
+    .filter(r => r[0] && r[1] && r[2])
+    .map(r => [
+      String(r[0]).trim(),  // Реквизиты — только как текст
+      r[1],                 // Банк
+      parseFloat(String(r[2]).replace(',', '.').replace(/\s/g, ''))  // Сумма
+    ]);
+
+  // Функция получения команды
+  const getTeam = (rangeStr, hasStatus = false) => {
+    const range = sheet.getRange(rangeStr);
+    const values = range.getValues().map(row => row.map(cell => cell || ""));
+    const firstEmpty = values.findIndex(row => row[0] === "");
+    return { range, values, firstEmpty, hasStatus };
+  };
+
+  // Функция расчёта суммы успешных заявок
+  const getSuccessfulSum = (rangeStr) => {
+    const values = sheet.getRange(rangeStr).getValues();
+    return values.reduce((sum, row) => {
+      const amount = parseFloat(row[2]) || 0;
+      return row[0] ? sum + amount : sum;
+    }, 0);
+  };
+
+  // Получение данных по Командам 1 и 2
+  const team1 = getTeam("F4:I41", true);
+  const team2 = getTeam("K4:N41", true);
+
+  let successSum1 = getSuccessfulSum("F46:I83");
+  let successSum2 = getSuccessfulSum("K46:N83");
+
+  const maxDiffHigh = 50000;
+  let anyAssigned = false;
+
+  // Распределение заявок
+  for (let [card, bank, amount] of requests) {
+    if (!card || !bank || !amount) continue;
+
+    let diff = successSum1 - successSum2;
+    let target = (diff <= -maxDiffHigh) ? team1 :
+                 (diff >= maxDiffHigh) ? team2 :
+                 (successSum1 <= successSum2 ? team1 : team2);
+
+    if (target.firstEmpty !== -1) {
+      const row = [card, bank, amount];
+      if (target.hasStatus) row.push("");  // Пустой статус
+      target.values[target.firstEmpty] = row;
+      target.firstEmpty++;
+      anyAssigned = true;
+
+      if (target === team1) {
+        successSum1 += amount;
+      } else {
+        successSum2 += amount;
+      }
+    }
+  }
+
+  // Обновление таблицы, если заявки распределились
+  if (anyAssigned) {
+    team1.range.setValues(team1.values);
+    team2.range.setValues(team2.values);
+    sheet.getRange("B3:D65").clearContent();
+  }
+}

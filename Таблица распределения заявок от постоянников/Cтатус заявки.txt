@@ -1,0 +1,23 @@
+function syncStatusesToAdmin() {
+  const staffSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Заявки");
+  const staffData = staffSheet.getRange("B4:E20").getValues(); // Вся строка: карта, банк, сумма, статус
+
+  const adminSheet = SpreadsheetApp
+    .openById("1Y-cm5fOiQMriSCWylc-LV8PQgj-vMR8Yoe9PDiWzQl8")
+    .getSheetByName("Заявки");
+  const adminData = adminSheet.getRange("F4:H20").getValues(); // Карта, банк, сумма
+
+  for (let i = 0; i < staffData.length; i++) {
+    const [card, bank, amount, status] = staffData[i];
+    if (!status  !card  !amount) continue;
+
+    for (let j = 0; j < adminData.length; j++) {
+      const [aCard, , aAmount] = adminData[j];
+      if (aCard === card && aAmount === amount) {
+        // Перенос всей строки (карта, банк, сумма, статус)
+        adminSheet.getRange(4 + j, 6, 1, 4).setValues([[card, bank, amount, status]]);
+        break;
+      }
+    }
+  }
+}
